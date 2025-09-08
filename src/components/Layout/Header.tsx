@@ -92,7 +92,7 @@ export default function Header() {
               >
                 <User className="w-5 h-5" />
                 <span className="hidden sm:block text-sm font-medium">
-                  {user ? userProfile?.full_name || 'Profile' : 'Login'}
+                  {user ? userProfile?.full_name || user?.email?.split('@')[0] || 'Profile' : 'Login'}
                 </span>
               </button>
 
@@ -101,9 +101,9 @@ export default function Header() {
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                   <div className="px-4 py-2 border-b border-gray-100">
                     <p className="text-sm font-medium text-gray-900">
-                      {userProfile?.full_name || 'User'}
+                      {userProfile?.full_name || user?.email || 'User'}
                     </p>
-                    <p className="text-xs text-gray-500">{user.phone}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
                   
                   <Link

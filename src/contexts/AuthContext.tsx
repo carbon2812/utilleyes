@@ -3,12 +3,15 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { getUserProfile } from '../lib/auth';
 import type { AuthState } from '../lib/auth';
+import type { UserProfile } from '../lib/supabase';
 
 interface AuthContextType extends AuthState {
-  sendOTP: (phone: string) => Promise<any>;
-  verifyOtp: (phone: string, token: string, fullName?: string) => Promise<any>;
-  signInWithOtp: (phone: string) => Promise<any>;
+  signUp: (email: string, password: string) => Promise<any>;
+  signIn: (email: string, password: string) => Promise<any>;
   signOut: () => Promise<void>;
+  userProfile: UserProfile | null;
+  profileLoading: boolean;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,31 +28,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const refreshProfile = async () => {
+    if (!user) {
+      setUserProfile(null);
+      setIsAdmin(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    try {
+      const { data: profile } = await getUserProfile(user.id);
+      setUserProfile(profile);
+      setIsAdmin(profile?.is_admin ?? false);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      setUserProfile(null);
+      setIsAdmin(false);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Get initial session
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      // Check for demo users in localStorage for persistence
-      const demoUser = localStorage.getItem('demoUser');
-      if (demoUser && !session?.user) {
-        const parsedUser = JSON.parse(demoUser);
-        setUser(parsedUser);
-        
-        if (parsedUser) {
-          const { data: profile } = await getUserProfile(parsedUser.id);
-          setIsAdmin(profile?.is_admin ?? false);
-        }
-      } else {
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const { data: profile } = await getUserProfile(session.user.id);
-          setIsAdmin(profile?.is_admin ?? false);
-        }
-      }
-      
+      setUser(session?.user ?? null);
       setLoading(false);
     };
 
@@ -59,14 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          const { data: profile } = await getUserProfile(session.user.id);
-          setIsAdmin(profile?.is_admin ?? false);
-        } else {
-          setIsAdmin(false);
-        }
-        
         setLoading(false);
       }
     );
@@ -74,80 +73,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const sendOTP = async (phone: string) => {
-    // Demo/Test mode - simulate OTP sending for demo numbers
-    if (phone === '+919876543210' || phone === '+919876543211') {
-      return { 
-        data: { messageId: 'demo-message-id' }, 
-        error: null 
-      };
-    }
+  useEffect(() => {
+    refreshProfile();
+  }, [user]);
 
-    return await supabase.auth.signInWithOtp({
-      phone,
-      options: {
-        channel: 'sms'
-      }
-    });
-  };
-
-  const verifyOTP = async (phone: string, token: string, fullName?: string) => {
-    // Demo/Test mode - accept demo credentials
-    if (phone === '+919876543210' && token === '123456') {
-      // Create mock user session for customer demo
-      const mockUser = {
-        id: 'demo-customer-id',
-        phone: phone,
-        email: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      // Create/update user profile
-      await supabase
-        .from('user_profiles')
-        .upsert({
-          id: mockUser.id,
-          full_name: fullName || 'Demo Customer',
-          phone: phone,
-          is_admin: false,
-        });
-      
-      // Store demo user in localStorage for persistence
-      localStorage.setItem('demoUser', JSON.stringify(mockUser));
-      setUser(mockUser);
-      setIsAdmin(false);
-      
-      return { 
-        data: { user: mockUser, session: { user: mockUser } }, 
-        error: null 
-      };
-    }
-    
-    if (phone === '+919876543211' && token === '123456') {
-      // Create mock user session for admin demo
+  const signUp = async (email: string, password: string) => {
+    // Demo admin check
+    if (email === 'admin@demo.com' && password === 'admin123') {
       const mockAdminUser = {
         id: 'demo-admin-id',
-        phone: phone,
-        email: null,
+        email: email,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
       
-      // Create/update admin user profile
       await supabase
         .from('user_profiles')
         .upsert({
           id: mockAdminUser.id,
-          full_name: fullName || 'Demo Admin',
-          phone: phone,
+          full_name: 'Demo Admin',
           is_admin: true,
         });
       
-      // Store demo user in localStorage for persistence
       localStorage.setItem('demoUser', JSON.stringify(mockAdminUser));
       setUser(mockAdminUser);
-      setIsAdmin(true);
       
       return { 
         data: { user: mockAdminUser, session: { user: mockAdminUser } }, 
@@ -155,59 +104,116 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone,
-      token,
-      type: 'sms'
-    });
-
-    if (data.user && !error && fullName) {
+    // Demo customer check
+    if (email === 'customer@demo.com' && password === 'customer123') {
+      const mockCustomerUser = {
+        id: 'demo-customer-id',
+        email: email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
       await supabase
         .from('user_profiles')
         .upsert({
-          id: data.user.id,
-          full_name: fullName,
-          phone: phone,
+          id: mockCustomerUser.id,
+          full_name: 'Demo Customer',
+          is_admin: false,
         });
-    }
-
-    return { data, error };
-  };
-
-  const signOut = async () => {
-    // Clear demo user from localStorage
-    localStorage.removeItem('demoUser');
-    setUser(null);
-    setIsAdmin(false);
-    
-    await supabase.auth.signOut();
-  };
-
-  const signInWithOtp = async (phone: string) => {
-    // Demo/Test mode - simulate OTP sending for demo numbers
-    if (phone === '+919876543210' || phone === '+919876543211') {
+      
+      localStorage.setItem('demoUser', JSON.stringify(mockCustomerUser));
+      setUser(mockCustomerUser);
+      
       return { 
-        data: { messageId: 'demo-message-id' }, 
+        data: { user: mockCustomerUser, session: { user: mockCustomerUser } }, 
         error: null 
       };
     }
 
-    return await supabase.auth.signInWithOtp({
-      phone,
-      options: {
-        channel: 'sms'
-      }
+    return await supabase.auth.signUp({
+      email,
+      password,
     });
+  };
+
+  const signIn = async (email: string, password: string) => {
+    // Demo admin check
+    if (email === 'admin@demo.com' && password === 'admin123') {
+      const mockAdminUser = {
+        id: 'demo-admin-id',
+        email: email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      await supabase
+        .from('user_profiles')
+        .upsert({
+          id: mockAdminUser.id,
+          full_name: 'Demo Admin',
+          is_admin: true,
+        });
+      
+      localStorage.setItem('demoUser', JSON.stringify(mockAdminUser));
+      setUser(mockAdminUser);
+      
+      return { 
+        data: { user: mockAdminUser, session: { user: mockAdminUser } }, 
+        error: null 
+      };
+    }
+
+    // Demo customer check
+    if (email === 'customer@demo.com' && password === 'customer123') {
+      const mockCustomerUser = {
+        id: 'demo-customer-id',
+        email: email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      await supabase
+        .from('user_profiles')
+        .upsert({
+          id: mockCustomerUser.id,
+          full_name: 'Demo Customer',
+          is_admin: false,
+        });
+      
+      localStorage.setItem('demoUser', JSON.stringify(mockCustomerUser));
+      setUser(mockCustomerUser);
+      
+      return { 
+        data: { user: mockCustomerUser, session: { user: mockCustomerUser } }, 
+        error: null 
+      };
+    }
+
+    return await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+  };
+
+  const signOut = async () => {
+    localStorage.removeItem('demoUser');
+    setUser(null);
+    setUserProfile(null);
+    setIsAdmin(false);
+    
+    await supabase.auth.signOut();
   };
 
   const value = {
     user,
     loading,
     isAdmin,
-    sendOTP,
-    verifyOTP,
-    signInWithOtp,
+    userProfile,
+    profileLoading,
+    signUp,
+    signIn,
     signOut,
+    refreshProfile,
   };
 
   return (
