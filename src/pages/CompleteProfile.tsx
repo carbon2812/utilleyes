@@ -43,7 +43,7 @@ const CompleteProfile: React.FC = () => {
           phone: formData.phone,
           date_of_birth: formData.date_of_birth || null,
           gender: formData.gender || null,
-          is_admin: false,
+          is_admin: false
         });
 
       if (error) throw error;

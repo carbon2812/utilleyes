@@ -78,122 +78,177 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   const signUp = async (email: string, password: string) => {
-    // Demo admin check
-    if (email === 'admin@demo.com' && password === 'admin123') {
-      const mockAdminUser = {
-        id: 'demo-admin-id',
-        email: email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      await supabase
-        .from('user_profiles')
-        .upsert({
-          id: mockAdminUser.id,
-          full_name: 'Demo Admin',
-          is_admin: true,
-        });
-      
-      localStorage.setItem('demoUser', JSON.stringify(mockAdminUser));
-      setUser(mockAdminUser);
-      
-      return { 
-        data: { user: mockAdminUser, session: { user: mockAdminUser } }, 
-        error: null 
+    try {
+      // Demo admin check
+      if (email === 'admin@demo.com' && password === 'admin123') {
+        const mockAdminUser = {
+          id: 'demo-admin-id',
+          email: email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        try {
+          await supabase
+            .from('user_profiles')
+            .upsert({
+              id: mockAdminUser.id,
+              full_name: 'Demo Admin',
+              is_admin: true,
+            });
+        } catch (error) {
+          console.log('Demo profile creation skipped:', error);
+        }
+        
+        localStorage.setItem('demoUser', JSON.stringify(mockAdminUser));
+        setUser(mockAdminUser);
+        
+        return { 
+          data: { user: mockAdminUser, session: { user: mockAdminUser } }, 
+          error: null 
+        };
+      }
+
+      // Demo customer check
+      if (email === 'customer@demo.com' && password === 'customer123') {
+        const mockCustomerUser = {
+          id: 'demo-customer-id',
+          email: email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        try {
+          await supabase
+            .from('user_profiles')
+            .upsert({
+              id: mockCustomerUser.id,
+              full_name: 'Demo Customer',
+              is_admin: false,
+            });
+        } catch (error) {
+          console.log('Demo profile creation skipped:', error);
+        }
+        
+        localStorage.setItem('demoUser', JSON.stringify(mockCustomerUser));
+        setUser(mockCustomerUser);
+        
+        return { 
+          data: { user: mockCustomerUser, session: { user: mockCustomerUser } }, 
+          error: null 
+        };
+      }
+
+      // Regular signup
+      const result = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      // If signup successful and user exists, create basic profile
+      if (result.data?.user && !result.error) {
+        try {
+          await supabase
+            .from('user_profiles')
+            .insert({
+              id: result.data.user.id,
+              is_admin: false,
+            });
+        } catch (error) {
+          console.log('Profile creation will be handled later:', error);
+        }
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Signup error:', error);
+      return {
+        data: { user: null, session: null },
+        error: error
       };
     }
-
-    // Demo customer check
-    if (email === 'customer@demo.com' && password === 'customer123') {
-      const mockCustomerUser = {
-        id: 'demo-customer-id',
-        email: email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      await supabase
-        .from('user_profiles')
-        .upsert({
-          id: mockCustomerUser.id,
-          full_name: 'Demo Customer',
-          is_admin: false,
-        });
-      
-      localStorage.setItem('demoUser', JSON.stringify(mockCustomerUser));
-      setUser(mockCustomerUser);
-      
-      return { 
-        data: { user: mockCustomerUser, session: { user: mockCustomerUser } }, 
-        error: null 
-      };
-    }
-
-    return await supabase.auth.signUp({
-      email,
-      password,
-    });
   };
 
   const signIn = async (email: string, password: string) => {
-    // Demo admin check
-    if (email === 'admin@demo.com' && password === 'admin123') {
-      const mockAdminUser = {
-        id: 'demo-admin-id',
-        email: email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      await supabase
-        .from('user_profiles')
-        .upsert({
-          id: mockAdminUser.id,
-          full_name: 'Demo Admin',
-          is_admin: true,
-        });
-      
-      localStorage.setItem('demoUser', JSON.stringify(mockAdminUser));
-      setUser(mockAdminUser);
-      
-      return { 
-        data: { user: mockAdminUser, session: { user: mockAdminUser } }, 
-        error: null 
+    try {
+      // Demo admin check
+      if (email === 'admin@demo.com' && password === 'admin123') {
+        const mockAdminUser = {
+          id: 'demo-admin-id',
+          email: email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        try {
+          await supabase
+            .from('user_profiles')
+            .upsert({
+              id: mockAdminUser.id,
+              full_name: 'Demo Admin',
+              is_admin: true,
+            });
+        } catch (error) {
+          console.log('Demo profile creation skipped:', error);
+        }
+        
+        localStorage.setItem('demoUser', JSON.stringify(mockAdminUser));
+        setUser(mockAdminUser);
+        
+        return { 
+          data: { user: mockAdminUser, session: { user: mockAdminUser } }, 
+          error: null 
+        };
+      }
+
+      // Demo customer check
+      if (email === 'customer@demo.com' && password === 'customer123') {
+        const mockCustomerUser = {
+          id: 'demo-customer-id',
+          email: email,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        try {
+          await supabase
+            .from('user_profiles')
+            .upsert({
+              id: mockCustomerUser.id,
+              full_name: 'Demo Customer',
+              is_admin: false,
+            });
+        } catch (error) {
+          console.log('Demo profile creation skipped:', error);
+        }
+        
+        localStorage.setItem('demoUser', JSON.stringify(mockCustomerUser));
+        setUser(mockCustomerUser);
+        
+        return { 
+          data: { user: mockCustomerUser, session: { user: mockCustomerUser } }, 
+          error: null 
+        };
+      }
+
+      // Regular signin
+      return await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+    } catch (error) {
+      console.error('Signin error:', error);
+      return {
+        data: { user: null, session: null },
+        error: error
       };
     }
-
-    // Demo customer check
-    if (email === 'customer@demo.com' && password === 'customer123') {
-      const mockCustomerUser = {
-        id: 'demo-customer-id',
-        email: email,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-      
-      await supabase
-        .from('user_profiles')
-        .upsert({
-          id: mockCustomerUser.id,
-          full_name: 'Demo Customer',
-          is_admin: false,
-        });
-      
-      localStorage.setItem('demoUser', JSON.stringify(mockCustomerUser));
-      setUser(mockCustomerUser);
-      
-      return { 
-        data: { user: mockCustomerUser, session: { user: mockCustomerUser } }, 
-        error: null 
-      };
-    }
-
-    return await supabase.auth.signInWithPassword({
+  };
       email,
       password,
     });
   };
+
 
   const signOut = async () => {
     localStorage.removeItem('demoUser');

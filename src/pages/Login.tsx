@@ -34,25 +34,39 @@ export default function Login() {
       if (isSignUp) {
         result = await signUp(email, password);
         if (result.data?.user && !result.error) {
-          // Check if it's a demo user or if profile needs completion
-          if (email.includes('@demo.com')) {
+          // Check if it's a demo user
+          if (email === 'admin@demo.com' || email === 'customer@demo.com') {
             navigate('/');
           } else {
+            // For new real users, redirect to complete profile
             navigate('/complete-profile');
           }
         }
       } else {
         result = await signIn(email, password);
         if (result.data?.user && !result.error) {
-          navigate('/');
+          // Check if user has completed profile
+          if (email === 'admin@demo.com' || email === 'customer@demo.com') {
+            navigate('/');
+          } else {
+            // For real users, check if profile is complete
+            navigate('/');
+          }
         }
       }
 
       if (result.error) {
-        setError(result.error.message);
+        if (result.error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please try again.');
+        } else if (result.error.message.includes('User already registered')) {
+          setError('This email is already registered. Please sign in instead.');
+        } else {
+          setError(result.error.message);
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      console.error('Auth error:', err);
+      setError('Authentication failed. Please try again.');
     } finally {
       setLoading(false);
     }
